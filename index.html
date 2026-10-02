@@ -133,7 +133,7 @@ footer.foot .in{max-width:1080px;margin:0 auto;padding:20px;display:flex;justify
   <div id="notice"></div>
   <main id="main"></main>
 </div>
-<footer class="foot"><div class="in"><span>© Opex House · Montréal</span><span>Contenu à jour au 2 octobre 2026</span></div></footer>
+<footer class="foot"><div class="in"><span>© Opex House · Montréal</span><span>Contenu protégé : reproduction, capture et diffusion interdites sans autorisation écrite · Contenu à jour au 2 octobre 2026</span></div></footer>
 <script>
 (function(){
 "use strict";
@@ -176,7 +176,7 @@ let syncT=null;
 function syncProgress(){
   clearTimeout(syncT);
   syncT=setTimeout(()=>{
-    const i=S.p.ident;if(!ENDPOINT||!i.nom||!i.courriel)return;
+    const i=S.p.ident;if(!ENDPOINT||!i.nom||!i.courriel||!accesOK())return;
     const ex={};const all=[...M4E.exercices,...M5E.exercices,...M6E.exercices,...M7E.exercices];
     all.forEach(e=>{const r=S.p.entrainement[e.id];if(r)ex[e.id]={titre:e.titre.replace(/ — .*/,"")+" ("+e.id.slice(0,2).toUpperCase()+")",t:r.t,best:r.best};});
     const errs={};Object.values(S.p.entrainement).forEach(r=>Object.entries(r.err||{}).forEach(([k,c])=>errs[k]=(errs[k]||0)+c));
@@ -188,22 +188,49 @@ function syncProgress(){
 }
 
 function notice(msg){const n=document.getElementById("notice");n.replaceChildren(msg?el("div",{class:"notice warn"},msg):"");}
+/*GATE:START*/
+/* ---------- Accès réservé, conditions d'utilisation, filigrane (code écrit à la main, injecté dans index.html par patch) ---------- */
+const AUTH_V="cgu-2026-10-02";
+const CGU=`<ol class="cgu"><li><strong>Propriété.</strong> Le contenu de ce parcours (leçons, exercices, tests, certifications, corrigés) appartient à Opex House et est protégé par le droit d'auteur.</li><li><strong>Usage personnel.</strong> Votre accès est personnel et non transférable. Vous l'utilisez uniquement pour votre propre formation.</li><li><strong>Interdictions.</strong> Sans autorisation écrite d'Opex House, il est interdit de copier, de capturer (écran ou photo), de diffuser, de publier ou de partager le contenu, en tout ou en partie, y compris les énoncés et les réponses des tests et des certifications, ou de l'utiliser à des fins commerciales ou pour entraîner un outil d'intelligence artificielle.</li><li><strong>Épreuves individuelles.</strong> Les tests et les certifications se font seul(e), sans l'aide d'une autre personne ni d'un outil d'intelligence artificielle, sauf indication contraire.</li><li><strong>Traçabilité.</strong> Votre nom et votre courriel s'affichent en filigrane sur chaque page ; vos connexions, réponses et résultats sont enregistrés. Toute fuite de contenu pourra être retracée jusqu'à votre compte.</li><li><strong>Renseignements personnels.</strong> Nous recueillons votre nom, votre courriel, votre progression et vos réponses pour gérer la formation et évaluer votre niveau. Ils sont transmis à Opex House et, selon le cas, au partenaire ou au cabinet client à qui Opex House vous présente. Vous pouvez demander l'accès, la correction ou la suppression de ces renseignements en vous adressant à Opex House.</li><li><strong>Portée des certifications.</strong> Les certifications sont internes à Opex House. Elles n'ont pas de valeur officielle auprès d'un ordre professionnel et ne remplacent pas l'avis d'un CPA. Le contenu est informatif.</li><li><strong>Suspension.</strong> Opex House peut suspendre votre accès en cas de non-respect de ces conditions.</li></ol>`;
+const accesOK=()=>{const a=S.p.acces,i=S.p.ident;return !!(a&&a.cgu===AUTH_V&&i&&i.courriel&&a.mail===i.courriel.trim().toLowerCase());};
+function verifier(nom,courriel,cgu){return new Promise(res=>{const cb="oh_"+Math.random().toString(36).slice(2);const s=document.createElement("script");let done=false;const t=setTimeout(()=>fin({ok:false,err:"reseau"}),12000);const fin=r=>{if(done)return;done=true;clearTimeout(t);delete window[cb];s.remove();res(r);};window[cb]=r=>fin(r&&typeof r==="object"?r:{ok:false,err:"reseau"});s.onerror=()=>fin({ok:false,err:"reseau"});s.src=ENDPOINT+"?verifier="+encodeURIComponent(courriel)+"&nom="+encodeURIComponent(nom)+"&cgu="+(cgu?AUTH_V:"")+"&callback="+cb;document.head.append(s);});}
+function applyWM(){const i=S.p.ident;const txt=((i.nom||"")+" · "+(i.courriel||"")+" · "+new Date().toLocaleDateString("fr-CA")).replace(/[&<>"']/g,"");const svg='<svg xmlns="http://www.w3.org/2000/svg" width="620" height="300"><text x="310" y="150" text-anchor="middle" transform="rotate(-22 310 150)" font-family="Arial,sans-serif" font-size="15" font-weight="700" fill="#0e2a47" fill-opacity="0.10">'+txt+'</text></svg>';let w=document.getElementById("wm");if(!w){w=document.createElement("div");w.id="wm";w.setAttribute("aria-hidden","true");document.body.append(w);}w.style.cssText='position:fixed;inset:0;z-index:9999;pointer-events:none;background:url("data:image/svg+xml;utf8,'+encodeURIComponent(svg)+'") repeat';}
+function showGate(){const w=document.getElementById("wm");if(w)w.remove();$("#tabs").replaceChildren();$("#who").replaceChildren();$("#main").replaceChildren(vGate());}
+function vGate(){
+  const nom=el("input",{class:"txt",autocomplete:"name",value:S.p.ident.nom||""});
+  const mail=el("input",{class:"txt",type:"email",autocomplete:"email",value:S.p.ident.courriel||""});
+  const cgu=el("input",{type:"checkbox",id:"cgu-ok"});
+  const msg=el("p",{class:"small",style:"margin:0"},"");
+  const err=t=>{msg.textContent=t;msg.className="small bad";};
+  const btn=el("button",{class:"btn",onclick:async()=>{
+    const n=nom.value.trim(),m=mail.value.trim().toLowerCase();
+    if(!n||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(m))return err("Entrez votre nom et un courriel valide.");
+    if(!cgu.checked)return err("Vous devez accepter les conditions d'utilisation.");
+    btn.disabled=true;msg.textContent="Vérification…";msg.className="small muted";
+    const r=await verifier(n,m,true);btn.disabled=false;
+    if(r.ok){S.p.ident={nom:n,courriel:m};S.p.acces={mail:m,at:new Date().toISOString(),cgu:AUTH_V};persist();syncProgress();render();window.scrollTo({top:0});}
+    else if(r.err==="reseau")err("Connexion impossible pour le moment. Vérifiez votre réseau et réessayez.");
+    else err("Ce courriel n'est pas inscrit à la formation. Utilisez le courriel avec lequel Opex House vous a inscrit(e), ou contactez Opex House.");
+  }},"Accéder à la formation");
+  return el("section",{class:"view"},
+    el("div",{},el("div",{class:"eyebrow"},"Accès réservé"),el("h2",{},"Identifiez-vous pour accéder au parcours"),el("p",{class:"lead"},"L'accès est réservé aux personnes inscrites par Opex House. Utilisez le courriel avec lequel vous avez été inscrit(e).")),
+    el("div",{class:"card"},el("div",{class:"grid2"},el("label",{class:"field"},"Nom complet",nom),el("label",{class:"field"},"Courriel",mail)),
+      el("h3",{},"Conditions d'utilisation"),el("div",{class:"enonce",style:"max-height:280px;overflow:auto;border:1px solid var(--line);padding:12px 16px;background:#fff",html:CGU}),
+      el("label",{class:"readmark",for:"cgu-ok",style:"margin:0;border:0;padding:0"},cgu,"J'ai lu et j'accepte les conditions d'utilisation."),
+      el("div",{class:"row"},btn,msg)));
+}
+/*GATE:END*/
 /* ---------- Onglets ---------- */
 const TABS=[["accueil","Mon parcours"],["intro","Introduction"],["test","Test d'entrée"],["m4","M4 · TPS/TVQ"],["m5","M5 · Paie"],["m6","M6 · Fin d'exercice"],["m7","M7 · Particuliers"],["memo","Aide-mémoire 2026"]];
 function renderTabs(){$("#tabs").replaceChildren(...TABS.map(([id,l])=>el("button",{role:"tab","aria-selected":S.tab===id?"true":"false",onclick:()=>{S.tab=id;try{localStorage.setItem("opex-tab",id)}catch(e){}render();window.scrollTo({top:0})}},l)));}
-function render(){renderTabs();renderWho();$("#main").replaceChildren(({accueil:vAccueil,intro:vIntro,test:()=>vCert(TEST),m4:()=>vModule("m4",M4E,M4C,"TPS/TVH et TVQ",DUREES.m4),m5:()=>vModule("m5",M5E,M5C,"Paie, retenues et fin d'année",DUREES.m5),m6:()=>vModule("m6",M6E,M6C,"Fin d'exercice, compilation et notions T2/CO-17",DUREES.m6),m7:()=>vModule("m7",M7E,M7C,"Impôt des particuliers : T1 et TP-1",DUREES.m7),memo:vMemo}[S.tab]||vAccueil)());}
+function render(){if(!accesOK()){showGate();return;}applyWM();renderTabs();renderWho();$("#main").replaceChildren(({accueil:vAccueil,intro:vIntro,test:()=>vCert(TEST),m4:()=>vModule("m4",M4E,M4C,"TPS/TVH et TVQ",DUREES.m4),m5:()=>vModule("m5",M5E,M5C,"Paie, retenues et fin d'année",DUREES.m5),m6:()=>vModule("m6",M6E,M6C,"Fin d'exercice, compilation et notions T2/CO-17",DUREES.m6),m7:()=>vModule("m7",M7E,M7C,"Impôt des particuliers : T1 et TP-1",DUREES.m7),memo:vMemo}[S.tab]||vAccueil)());}
 function renderWho(){const i=S.p.ident;$("#who").replaceChildren(i.nom?el("span",{},i.nom):el("span",{class:"pill warn"},"Identifiez-vous dans « Mon parcours »"));}
 
 /* ---------- Mon parcours ---------- */
 function vAccueil(){
   const v=el("section",{class:"view"});
   v.append(el("div",{},el("div",{class:"eyebrow"},"Mon parcours"),el("h2",{},"Où j'en suis"),el("p",{class:"lead"},"Entraînez-vous autant que vous voulez : la correction s'affiche tout de suite. Les certifications sont corrigées par la formatrice ; chaque tentative lui est transmise.")));
-  const nom=el("input",{id:"id-nom",class:"txt",autocomplete:"name",value:S.p.ident.nom||""});
-  const mail=el("input",{id:"id-mail",class:"txt",type:"email",autocomplete:"email",value:S.p.ident.courriel||""});
-  const saved=el("span",{class:"small muted"},"");
-  v.append(el("div",{class:"card"},el("h3",{},"Mon identité"),el("p",{class:"small muted",style:"margin:0"},"Utilisez le même courriel pour toutes les certifications : c'est lui qui relie vos résultats."),
-    el("div",{class:"grid2"},el("label",{class:"field"},"Nom complet",nom),el("label",{class:"field"},"Courriel",mail)),
-    el("div",{class:"row"},el("button",{class:"btn",onclick:()=>{const n=nom.value.trim(),m=mail.value.trim();if(!n||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(m)){saved.textContent="Entrez votre nom et un courriel valide.";saved.className="small bad";return;}S.p.ident={nom:n,courriel:m};persist();syncProgress();saved.textContent="Enregistré sur cet appareil.";saved.className="small good";renderWho();}},"Enregistrer"),saved)));
+  v.append(el("div",{class:"card"},el("h3",{},"Mon accès"),el("p",{class:"small muted",style:"margin:0"},"Connecté : "+S.p.ident.nom+" · "+S.p.ident.courriel+". Vos résultats sont reliés à ce courriel."),el("div",{class:"row"},el("button",{class:"btn ghost",onclick:()=>{delete S.p.acces;persist();render();}},"Changer de personne"))));
   const certs=S.p.certifs||{};const tr=S.p.entrainement||{};
   const g=el("div",{class:"grid2"});
   [["test","Test d'entrée","test"],["m4c","Certification M4 · TPS/TVQ","m4"],["m5c","Certification M5 · Paie","m5"],["m6c","Certification M6 · Fin d'exercice","m6"],["m7c","Certification M7 · Particuliers","m7"]].forEach(([id,l,tab])=>{
@@ -358,6 +385,8 @@ function vMemo(){
 
 render();
 if(S.p.ident&&S.p.ident.courriel){syncProgress();}
+if(accesOK()){verifier(S.p.ident.nom,S.p.ident.courriel,false).then(r=>{if(r&&r.ok===false&&!r.err){delete S.p.acces;persist();render();}});}
+new MutationObserver(()=>{if(accesOK()&&!document.getElementById("wm"))applyWM();}).observe(document.body,{childList:true});
 })();
 
 </script>
