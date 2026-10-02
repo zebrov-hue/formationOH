@@ -193,7 +193,14 @@ function notice(msg){const n=document.getElementById("notice");n.replaceChildren
 const AUTH_V="cgu-2026-10-02";
 const CGU=`<ol class="cgu"><li><strong>Propriété.</strong> Le contenu de ce parcours (leçons, exercices, tests, certifications, corrigés) appartient à Opex House et est protégé par le droit d'auteur.</li><li><strong>Usage personnel.</strong> Votre accès est personnel et non transférable. Vous l'utilisez uniquement pour votre propre formation.</li><li><strong>Interdictions.</strong> Sans autorisation écrite d'Opex House, il est interdit de copier, de capturer (écran ou photo), de diffuser, de publier ou de partager le contenu, en tout ou en partie, y compris les énoncés et les réponses des tests et des certifications, ou de l'utiliser à des fins commerciales ou pour entraîner un outil d'intelligence artificielle.</li><li><strong>Épreuves individuelles.</strong> Les tests et les certifications se font seul(e), sans l'aide d'une autre personne ni d'un outil d'intelligence artificielle, sauf indication contraire.</li><li><strong>Traçabilité.</strong> Votre nom et votre courriel s'affichent en filigrane sur chaque page ; vos connexions, réponses et résultats sont enregistrés. Toute fuite de contenu pourra être retracée jusqu'à votre compte.</li><li><strong>Renseignements personnels.</strong> Nous recueillons votre nom, votre courriel, votre progression et vos réponses pour gérer la formation et évaluer votre niveau. Ils sont transmis à Opex House et, selon le cas, au partenaire ou au cabinet client à qui Opex House vous présente. Vous pouvez demander l'accès, la correction ou la suppression de ces renseignements en vous adressant à Opex House.</li><li><strong>Portée des certifications.</strong> Les certifications sont internes à Opex House. Elles n'ont pas de valeur officielle auprès d'un ordre professionnel et ne remplacent pas l'avis d'un CPA. Le contenu est informatif.</li><li><strong>Suspension.</strong> Opex House peut suspendre votre accès en cas de non-respect de ces conditions.</li></ol>`;
 const accesOK=()=>{const a=S.p.acces,i=S.p.ident;return !!(a&&a.cgu===AUTH_V&&i&&i.courriel&&a.mail===i.courriel.trim().toLowerCase());};
-function verifier(nom,courriel,cgu,demande){return new Promise(res=>{const cb="oh_"+Math.random().toString(36).slice(2);const s=document.createElement("script");let done=false;const t=setTimeout(()=>fin({ok:false,err:"reseau"}),12000);const fin=r=>{if(done)return;done=true;clearTimeout(t);delete window[cb];s.remove();res(r);};window[cb]=r=>fin(r&&typeof r==="object"?r:{ok:false,err:"reseau"});s.onerror=()=>fin({ok:false,err:"reseau"});s.src=ENDPOINT+"?verifier="+encodeURIComponent(courriel)+"&nom="+encodeURIComponent(nom)+"&cgu="+(cgu?AUTH_V:"")+(demande?"&demande=1":"")+"&callback="+cb;document.head.append(s);});}
+function jsonpCall(q){return new Promise(res=>{const cb="oh_"+Math.random().toString(36).slice(2);const s=document.createElement("script");let done=false;const t=setTimeout(()=>fin({ok:false,err:"delai"}),9000);const fin=r=>{if(done)return;done=true;clearTimeout(t);delete window[cb];s.remove();res(r);};window[cb]=r=>fin(r&&typeof r==="object"?r:{ok:false,err:"reponse"});s.onerror=()=>fin({ok:false,err:"bloque"});s.src=ENDPOINT+q+"&callback="+cb;document.head.append(s);});}
+async function verifier(nom,courriel,cgu,demande){
+  const q="?verifier="+encodeURIComponent(courriel)+"&nom="+encodeURIComponent(nom)+"&cgu="+(cgu?AUTH_V:"")+(demande?"&demande=1":"");
+  const det=[];
+  const r1=await jsonpCall(q);if(!r1.err)return r1;det.push("A:"+r1.err);
+  try{const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),12000);const resp=await fetch(ENDPOINT+q+"&callback=cb",{signal:ctl.signal});clearTimeout(t);const txt=await resp.text();const m=txt.match(/^\s*[\w$]+\(([\s\S]*)\)\s*;?\s*$/);if(m)return JSON.parse(m[1]);det.push("B:reponse "+resp.status);}catch(e){det.push("B:"+((e&&e.name)||"erreur"));}
+  return {ok:false,err:"reseau",detail:det.join(" ")};
+}
 function applyWM(){const i=S.p.ident;const txt=((i.nom||"")+" · "+(i.courriel||"")+" · "+new Date().toLocaleDateString("fr-CA")).replace(/[&<>"']/g,"");const svg='<svg xmlns="http://www.w3.org/2000/svg" width="620" height="300"><text x="310" y="150" text-anchor="middle" transform="rotate(-22 310 150)" font-family="Arial,sans-serif" font-size="15" font-weight="700" fill="#0e2a47" fill-opacity="0.10">'+txt+'</text></svg>';let w=document.getElementById("wm");if(!w){w=document.createElement("div");w.id="wm";w.setAttribute("aria-hidden","true");document.body.append(w);}w.style.cssText='position:fixed;inset:0;z-index:9999;pointer-events:none;background:url("data:image/svg+xml;utf8,'+encodeURIComponent(svg)+'") repeat';}
 function showGate(){const w=document.getElementById("wm");if(w)w.remove();$("#tabs").replaceChildren();$("#who").replaceChildren();$("#main").replaceChildren(vGate());}
 function vGate(){
@@ -209,7 +216,7 @@ function vGate(){
     const r=await verifier(n,m,false,true);dem.disabled=false;
     if(r.demande){dem.hidden=true;msg.textContent="Demande envoyée. Opex House vous répondra après approbation ; revenez ensuite sur cette page.";msg.className="small good";}
     else if(r.attente){dem.hidden=true;msg.textContent="Votre demande est déjà en attente d'approbation.";msg.className="small good";}
-    else if(r.err==="reseau")err("Connexion impossible pour le moment. Réessayez plus tard.");
+    else if(r.err==="reseau")err("Connexion impossible pour le moment. Réessayez plus tard."+(r.detail?" (code "+r.detail+")":""));
     else err("La demande n'a pas pu être enregistrée. Contactez Opex House.");
   }},"Demander l'accès");
   const btn=el("button",{class:"btn",onclick:async()=>{
@@ -219,7 +226,7 @@ function vGate(){
     btn.disabled=true;msg.textContent="Vérification…";msg.className="small muted";
     const r=await verifier(n,m,true);btn.disabled=false;
     if(r.ok){S.p.ident={nom:n,courriel:m};S.p.acces={mail:m,at:new Date().toISOString(),cgu:AUTH_V};persist();syncProgress();render();window.scrollTo({top:0});}
-    else if(r.err==="reseau")err("Connexion impossible pour le moment. Vérifiez votre réseau et réessayez.");
+    else if(r.err==="reseau")err("Connexion impossible pour le moment. Désactivez vos bloqueurs de publicité pour ce site, vérifiez votre réseau et réessayez."+(r.detail?" (code "+r.detail+")":""));
     else if(r.attente){dem.hidden=true;msg.textContent="Votre demande d'accès est en attente d'approbation par Opex House.";msg.className="small good";}
     else{err("Ce courriel n'est pas inscrit à la formation. Utilisez le courriel avec lequel Opex House vous a inscrit(e), ou faites une demande d'accès.");dem.hidden=false;}
   }},"Accéder à la formation");
