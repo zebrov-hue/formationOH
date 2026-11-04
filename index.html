@@ -33,8 +33,11 @@ body{background:var(--bg);color:var(--ink);font:16px/1.55 var(--sans)}
 .hero .kicker{font:700 12px var(--head);letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
 .hero h1{font:800 clamp(28px,4.4vw,40px)/1.15 var(--head);margin:10px 0 10px;letter-spacing:-.01em;text-wrap:balance}
 .hero p{margin:0;max-width:60ch;color:#d7e1ec;font-size:17px}
-nav.tabs{background:var(--brand-2);display:flex;gap:0;position:sticky;top:0;z-index:5}
-nav.tabs .in{max-width:1080px;margin:0 auto;display:flex;flex-wrap:wrap;width:100%;padding:0 12px}
+nav.tabs{background:var(--brand-2);display:block;position:sticky;top:0;z-index:5}
+nav.tabs .subbar{background:rgba(0,0,0,.22);border-top:1px solid rgba(255,255,255,.08)}
+nav.tabs .in.sub button{font-weight:500;font-size:13px;padding:8px 12px;color:#aebfd2}
+nav.tabs .in.sub button[aria-selected="true"]{color:#fff;font-weight:700}
+nav.tabs .in{max-width:1080px;margin:0 auto;display:flex;flex-wrap:wrap;width:100%;padding:0 12px;box-sizing:border-box}
 nav.tabs button{font:600 14px var(--head);color:#c9d5e3;background:none;border:0;border-bottom:3px solid transparent;padding:10px 14px;cursor:pointer;white-space:nowrap;letter-spacing:.02em}
 nav.tabs button:hover{color:#fff}
 nav.tabs button[aria-selected="true"]{color:#fff;border-bottom-color:var(--accent)}
@@ -128,7 +131,7 @@ footer.foot .in{max-width:1080px;margin:0 auto;padding:20px;display:flex;justify
   <h1>Parcours de formation Opex House</h1>
   <p>Taxes, paie, fin d'exercice et impôt selon les règles québécoises.<br>Lisez, entraînez-vous, puis passez vos certifications.</p>
 </div></section>
-<nav class="tabs" role="tablist"><div class="in" id="tabs"></div></nav>
+<nav class="tabs" role="tablist"><div class="in" id="tabs"></div><div class="subbar"><div class="in sub" id="subtabs"></div></div></nav>
 <div class="wrap">
   <div id="notice"></div>
   <main id="main"></main>
@@ -517,7 +520,7 @@ async function verifier(nom,courriel,cgu,demande){
   return {ok:false,err:"reseau",detail:det.join(" ")};
 }
 function applyWM(){const i=S.p.ident;const txt=((i.nom||"")+" · "+(i.courriel||"")+" · "+new Date().toLocaleDateString("fr-CA")).replace(/[&<>"']/g,"");const svg='<svg xmlns="http://www.w3.org/2000/svg" width="620" height="300"><text x="310" y="150" text-anchor="middle" transform="rotate(-22 310 150)" font-family="Arial,sans-serif" font-size="15" font-weight="700" fill="#0e2a47" fill-opacity="0.10">'+txt+'</text></svg>';let w=document.getElementById("wm");if(!w){w=document.createElement("div");w.id="wm";w.setAttribute("aria-hidden","true");document.body.append(w);}w.style.cssText='position:fixed;inset:0;z-index:9999;pointer-events:none;background:url("data:image/svg+xml;utf8,'+encodeURIComponent(svg)+'") repeat';}
-function showGate(){const w=document.getElementById("wm");if(w)w.remove();$("#tabs").replaceChildren();$("#who").replaceChildren();$("#main").replaceChildren(vGate());}
+function showGate(){const w=document.getElementById("wm");if(w)w.remove();$("#tabs").replaceChildren();$("#subtabs").replaceChildren();$("#subtabs").parentNode.style.display="none";$("#who").replaceChildren();$("#main").replaceChildren(vGate());}
 function vGate(){
   const nom=el("input",{class:"txt",autocomplete:"name",value:S.p.ident.nom||""});
   const mail=el("input",{class:"txt",type:"email",autocomplete:"email",value:S.p.ident.courriel||""});
@@ -555,7 +558,17 @@ function vGate(){
 /*GATE:END*/
 /* ---------- Onglets ---------- */
 const TABS=[["accueil","Mon parcours"],["intro","Introduction"],["test","Test d'entrée"],["m4","M4 · TPS/TVQ"],["m5","M5 · Paie"],["m6","M6 · Fin d'exercice"],["m7","M7 · Particuliers"],["m8","M8 · Sociétés"],["m9","M9 · Tenue de livres"],["m10","M10 · Dossier complet"],["m11","M11 · Administrations"],["revue","Revue de la semaine"],["memo","Aide-mémoire 2026"]];
-function renderTabs(){$("#tabs").replaceChildren(...TABS.map(([id,l])=>el("button",{role:"tab","aria-selected":S.tab===id?"true":"false",onclick:()=>{S.tab=id;try{localStorage.setItem("opex-tab",id)}catch(e){}render();window.scrollTo({top:0})}},l)));}
+const GROUPS=[["accueil","Mon parcours",["accueil"]],["demarrer","Démarrer",["intro","test"]],["modules","Modules",["m4","m5","m6","m7","m8","m9","m10","m11"]],["revue","Revue de la semaine",["revue"]],["memo","Aide-mémoire 2026",["memo"]]];
+const TLAB=Object.fromEntries(TABS);
+function goTab(id){S.tab=id;try{localStorage.setItem("opex-tab",id)}catch(e){}render();window.scrollTo({top:0})}
+function renderTabs(){
+  const cur=GROUPS.find(g=>g[2].includes(S.tab))||GROUPS[0];
+  S.lastIn=S.lastIn||{};S.lastIn[cur[0]]=S.tab;
+  $("#tabs").replaceChildren(...GROUPS.map(([gid,l,ids])=>el("button",{role:"tab","aria-selected":gid===cur[0]?"true":"false",onclick:()=>goTab((S.lastIn&&S.lastIn[gid])||ids[0])},l)));
+  const certs=S.p.certifs||{},multi=cur[2].length>1;
+  $("#subtabs").replaceChildren(...(multi?cur[2].map(id=>{const done=certs[id==="test"?"test":id+"c"];return el("button",{role:"tab","aria-selected":S.tab===id?"true":"false",onclick:()=>goTab(id)},(TLAB[id]||id)+(done?" ✓":""));}):[]));
+  $("#subtabs").parentNode.style.display=multi?"":"none";
+}
 function render(){if(!accesOK()){showGate();return;}applyWM();renderTabs();renderWho();$("#main").replaceChildren(({accueil:vAccueil,intro:vIntro,test:()=>vCert(TEST),m4:()=>vModule("m4",M4E,M4C,"TPS/TVH et TVQ",DUREES.m4),m5:()=>vModule("m5",M5E,M5C,"Paie, retenues et fin d'année",DUREES.m5),m6:()=>vModule("m6",M6E,M6C,"Fin d'exercice, compilation et notions T2/CO-17",DUREES.m6),m7:()=>vModule("m7",M7E,M7C,"Impôt des particuliers : T1 et TP-1",DUREES.m7),m8:()=>vModule("m8",M8E,M8C,"Sociétés: DPA, dividendes et plafond des affaires",DUREES.m8),m9:()=>vModule("m9",M9E,M9C,"Tenue de livres et clôture mensuelle",DUREES.m9),m10:()=>vModule("m10",M10E,M10C,"Dossier complet, de la pièce à la déclaration",DUREES.m10),revue:vRevue,m11:()=>vModule("m11",M11E,M11C,"Relations avec l'ARC et Revenu Québec",DUREES.m11),memo:vMemo}[S.tab]||vAccueil)());}
 function renderWho(){const i=S.p.ident;$("#who").replaceChildren(i.nom?el("span",{},i.nom):el("span",{class:"pill warn"},"Identifiez-vous dans « Mon parcours »"));}
 
