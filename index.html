@@ -35,7 +35,7 @@ body{background:var(--bg);color:var(--ink);font:16px/1.55 var(--sans)}
 .hero p{margin:0;max-width:60ch;color:#d7e1ec;font-size:17px}
 nav.tabs{background:var(--brand-2);display:block;position:sticky;top:0;z-index:5}
 nav.tabs .subbar{background:rgba(0,0,0,.22);border-top:1px solid rgba(255,255,255,.08)}
-nav.tabs .in.sub button{font-weight:500;font-size:13px;padding:8px 12px;color:#aebfd2}
+nav.tabs .in.sub button{font-weight:500;font-size:13px;padding:8px 10px;color:#aebfd2}
 nav.tabs .in.sub button[aria-selected="true"]{color:#fff;font-weight:700}
 nav.tabs .in{max-width:1080px;margin:0 auto;display:flex;flex-wrap:wrap;width:100%;padding:0 12px;box-sizing:border-box}
 nav.tabs button{font:600 14px var(--head);color:#c9d5e3;background:none;border:0;border-bottom:3px solid transparent;padding:10px 14px;cursor:pointer;white-space:nowrap;letter-spacing:.02em}
@@ -560,13 +560,14 @@ function vGate(){
 const TABS=[["accueil","Mon parcours"],["intro","Introduction"],["test","Test d'entrée"],["m4","M4 · TPS/TVQ"],["m5","M5 · Paie"],["m6","M6 · Fin d'exercice"],["m7","M7 · Particuliers"],["m8","M8 · Sociétés"],["m9","M9 · Tenue de livres"],["m10","M10 · Dossier complet"],["m11","M11 · Administrations"],["revue","Revue de la semaine"],["memo","Aide-mémoire 2026"]];
 const GROUPS=[["accueil","Mon parcours",["accueil"]],["demarrer","Démarrer",["intro","test"]],["modules","Modules",["m4","m5","m6","m7","m8","m9","m10","m11"]],["revue","Revue de la semaine",["revue"]],["memo","Aide-mémoire 2026",["memo"]]];
 const TLAB=Object.fromEntries(TABS);
+const SUBLAB={m4:"M4 · TPS/TVQ",m5:"M5 · Paie",m6:"M6 · Fin d'exercice",m7:"M7 · Particuliers",m8:"M8 · Sociétés",m9:"M9 · Livres",m10:"M10 · Dossier",m11:"M11 · ARC et RQ"};
 function goTab(id){S.tab=id;try{localStorage.setItem("opex-tab",id)}catch(e){}render();window.scrollTo({top:0})}
 function renderTabs(){
   const cur=GROUPS.find(g=>g[2].includes(S.tab))||GROUPS[0];
   S.lastIn=S.lastIn||{};S.lastIn[cur[0]]=S.tab;
   $("#tabs").replaceChildren(...GROUPS.map(([gid,l,ids])=>el("button",{role:"tab","aria-selected":gid===cur[0]?"true":"false",onclick:()=>goTab((S.lastIn&&S.lastIn[gid])||ids[0])},l)));
   const certs=S.p.certifs||{},multi=cur[2].length>1;
-  $("#subtabs").replaceChildren(...(multi?cur[2].map(id=>{const done=certs[id==="test"?"test":id+"c"];return el("button",{role:"tab","aria-selected":S.tab===id?"true":"false",onclick:()=>goTab(id)},(TLAB[id]||id)+(done?" ✓":""));}):[]));
+  $("#subtabs").replaceChildren(...(multi?cur[2].map(id=>{const done=certs[id==="test"?"test":id+"c"];return el("button",{role:"tab","aria-selected":S.tab===id?"true":"false",onclick:()=>goTab(id)},(SUBLAB[id]||TLAB[id]||id)+(done?" ✓":""));}):[]));
   $("#subtabs").parentNode.style.display=multi?"":"none";
 }
 function render(){if(!accesOK()){showGate();return;}applyWM();renderTabs();renderWho();$("#main").replaceChildren(({accueil:vAccueil,intro:vIntro,test:()=>vCert(TEST),m4:()=>vModule("m4",M4E,M4C,"TPS/TVH et TVQ",DUREES.m4),m5:()=>vModule("m5",M5E,M5C,"Paie, retenues et fin d'année",DUREES.m5),m6:()=>vModule("m6",M6E,M6C,"Fin d'exercice, compilation et notions T2/CO-17",DUREES.m6),m7:()=>vModule("m7",M7E,M7C,"Impôt des particuliers : T1 et TP-1",DUREES.m7),m8:()=>vModule("m8",M8E,M8C,"Sociétés: DPA, dividendes et plafond des affaires",DUREES.m8),m9:()=>vModule("m9",M9E,M9C,"Tenue de livres et clôture mensuelle",DUREES.m9),m10:()=>vModule("m10",M10E,M10C,"Dossier complet, de la pièce à la déclaration",DUREES.m10),revue:vRevue,m11:()=>vModule("m11",M11E,M11C,"Relations avec l'ARC et Revenu Québec",DUREES.m11),memo:vMemo}[S.tab]||vAccueil)());}
